@@ -5,7 +5,7 @@ import SpendingOverview from './SpendingOverview'
 import { AuthLayout, AuthSecureFooter, PasswordField, passwordsMatch, validateEmail, validatePassword } from './AuthComponents'
 import { AccountSummaryCard, AccountSecurity, ActivityDateRangePicker, ActivityList, AppearanceControl, buildActivityRowPresentation, DeleteAccountDialog, ProfileForm, ScheduleList, SettingsTabs, SettingsTabGuardDialog, TutorialSettings, useSettingsTab } from './ProfileSettingsComponents'
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleHelp, Coffee, CreditCard, Download, Eye, EyeOff, History, Minus, Pencil,
+  ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleHelp, Coffee, Copy, CreditCard, Download, Eye, EyeOff, History, Minus, Pencil, Repeat2,
   LayoutDashboard, LockKeyhole, LogOut, Plus, Search, Settings2, ShoppingBag, UserRound,
   SlidersHorizontal, Sparkles, Sun, Moon, Trash2, Utensils, Wallet, X, MoreHorizontal,
 } from 'lucide-react'
@@ -181,6 +181,11 @@ const nav = [
 ]
 
 const peso = (amount) => `₱${Math.abs(amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const cleanDisplayText = (value) => {
+  if (value === null || value === undefined) return ''
+  const text = String(value).trim()
+  return ['undefined', 'null', 'nan'].includes(text.toLowerCase()) ? '' : text
+}
 const dayOptionLabel = (day) => `${day}${day % 100 >= 11 && day % 100 <= 13 ? 'th' : day % 10 === 1 ? 'st' : day % 10 === 2 ? 'nd' : day % 10 === 3 ? 'rd' : 'th'}${day >= 29 ? ' / month-end' : ''}`
 function MenuSelect({ value, options, onChange, ariaLabel, className = '' }) {
   const rootRef = useRef(null)
@@ -431,6 +436,80 @@ function toLocalIsoDate(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    const update = () => setMatches(media.matches)
+    update()
+    media.addEventListener?.('change', update)
+    return () => media.removeEventListener?.('change', update)
+  }, [query])
+  return matches
+}
+
+function BottomSheet({ labelledBy, onClose, returnFocusRef, className = '', children }) {
+  const sheetRef = useRef(null)
+  const touchStartRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  useEffect(() => {
+    const sheet = sheetRef.current
+    if (!sheet) return undefined
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement
+    document.body.style.overflow = 'hidden'
+    const focusables = () => [...sheet.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')]
+    window.requestAnimationFrame(() => (focusables()[0] || sheet).focus())
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusables()
+      if (!items.length) { event.preventDefault(); sheet.focus(); return }
+      const first = items[0]
+      const last = items.at(-1)
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      window.requestAnimationFrame(() => {
+        const target = returnFocusRef?.current || previousFocus
+        if (target?.isConnected && typeof target.focus === 'function') target.focus()
+      })
+    }
+  }, [returnFocusRef])
+  if (typeof document === 'undefined') return null
+  return createPortal(<div className={`mobile-sheet-backdrop ${className}-backdrop`} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section ref={sheetRef} className={`mobile-bottom-sheet ${className}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}
+      onTouchStart={(event) => { touchStartRef.current = event.touches[0]?.clientY ?? null }}
+      onTouchEnd={(event) => { const start = touchStartRef.current; const end = event.changedTouches[0]?.clientY; if (start !== null && typeof end === 'number' && end - start > 90 && sheetRef.current?.scrollTop <= 0) onClose(); touchStartRef.current = null }}>
+      <div className="mobile-sheet-handle" aria-hidden="true" />
+      {children}
+    </section>
+  </div>, document.body)
+}
+
+function TransactionFilterControls({ type, category, sort, categories, onTypeChange, onCategoryChange, onSortChange, onClear, onApply, mobile = false }) {
+  return <div className={mobile ? 'mobile-transaction-filter-controls' : 'filter-popover'}>
+    <label>Type<MenuSelect value={type} onChange={onTypeChange} ariaLabel="Filter transactions by type" options={[{ value: 'all', label: 'All activity' }, { value: 'expense', label: 'Expenses' }, { value: 'income', label: 'Income' }]}/></label>
+    <label>Category<MenuSelect value={category} onChange={onCategoryChange} ariaLabel="Filter transactions by category" options={categories}/></label>
+    <label className="filter-popover-sort">Sort by<MenuSelect value={sort} onChange={onSortChange} ariaLabel="Sort transactions" options={[{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }, { value: 'amount-high', label: 'Highest amount' }, { value: 'amount-low', label: 'Lowest amount' }]}/></label>
+    {mobile ? <div className="mobile-filter-sheet-actions"><button type="button" className="secondary-button" onClick={onClear}>Clear</button><button type="button" className="primary-button" onClick={onApply}>Apply filters</button></div> : <button type="button" className="text-button clear-filters-button" onClick={onClear}>Clear filters</button>}
+  </div>
+}
+
 function getActivityDateRange(preset, customStart, customEnd, now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   if (preset === 'all_time') return { startDate: '', endDate: '' }
@@ -448,6 +527,7 @@ function getActivityDateRange(preset, customStart, customEnd, now = new Date()) 
 }
 
 function App() {
+  const isMobile = useMediaQuery('(max-width: 640px)')
   const [theme, setTheme] = useState(() => {
     try { return window.localStorage.getItem('resibo-theme') === 'light' ? 'light' : 'dark' } catch { return 'dark' }
   })
@@ -531,7 +611,13 @@ function App() {
   const [active, setActive] = useState(() => window.location.hash.startsWith('#settings/') ? 'Profile' : 'Dashboard')
   const [selectedCycleDate, setSelectedCycleDate] = useState(() => currentMonthAnchor())
   const [chartGrouping, setChartGrouping] = useState('day')
+  const [transactionSort, setTransactionSort] = useState('newest')
   const [showFilters, setShowFilters] = useState(false)
+  const [showMobileFilterSheet, setShowMobileFilterSheet] = useState(false)
+  const [mobileTransactionDetail, setMobileTransactionDetail] = useState(null)
+  const [draftFilterCategory, setDraftFilterCategory] = useState('all')
+  const [draftFilterType, setDraftFilterType] = useState('all')
+  const [draftTransactionSort, setDraftTransactionSort] = useState('newest')
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterType, setFilterType] = useState('all')
   const [paymentGroupsState, setPaymentGroupsState] = useState(paymentGroups)
@@ -596,6 +682,7 @@ function App() {
   const methodMenuRef = useRef(null)
   const methodPickerRef = useRef(null)
   const transactionContextMenuRef = useRef(null)
+  const mobileSheetReturnFocusRef = useRef(null)
   const paymentCardContextMenuRef = useRef(null)
   const incomeScheduleContextMenuRef = useRef(null)
   const [showBudgetForm, setShowBudgetForm] = useState(false)
@@ -1045,7 +1132,14 @@ function App() {
     const today = localIsoDate()
     setTransactionDate(today.slice(0, 7) === selectedCycleDate.slice(0, 7) ? today : selectedCycleDate)
   }, [selectedCycleDate])
-  const filtered = transactions.filter((t) => `${t.name} ${t.category} ${t.paymentMethodName || ''}`.toLowerCase().includes(search.toLowerCase()) && (filterCategory === 'all' || (filterCategory === '__credit_card_payment__' ? t.isCreditCardPayment : String(t.categoryId) === filterCategory)) && (filterType === 'all' || t.type === filterType))
+  const filtered = transactions.filter((t) => `${t.name} ${t.category} ${t.paymentMethodName || ''}`.toLowerCase().includes(search.toLowerCase()) && (filterCategory === 'all' || (filterCategory === '__credit_card_payment__' ? t.isCreditCardPayment : String(t.categoryId) === filterCategory)) && (filterType === 'all' || t.type === filterType)).sort((first, second) => {
+    if (transactionSort === 'amount-high') return Math.abs(Number(second.amount) || 0) - Math.abs(Number(first.amount) || 0)
+    if (transactionSort === 'amount-low') return Math.abs(Number(first.amount) || 0) - Math.abs(Number(second.amount) || 0)
+    const firstDate = Date.parse(first.createdAt || first.isoDate || '') || 0
+    const secondDate = Date.parse(second.createdAt || second.isoDate || '') || 0
+    return transactionSort === 'oldest' ? firstDate - secondDate : secondDate - firstDate
+  })
+  const activeTransactionFilterCount = Number(filterType !== 'all') + Number(filterCategory !== 'all')
   const transactionCategoryOptions = [
     { value: 'all', label: 'All categories' },
     ...categories.filter((entry) => filterType === 'all' || entry.type === filterType).map((entry) => ({ value: String(entry.id), label: entry.name })),
@@ -1402,13 +1496,84 @@ function App() {
     setNote('')
   }
 
+  function openMobileFilters(event) {
+    mobileSheetReturnFocusRef.current = event.currentTarget
+    setShowFilters(false)
+    setDraftFilterType(filterType)
+    setDraftFilterCategory(filterCategory)
+    setDraftTransactionSort(transactionSort)
+    setShowMobileFilterSheet(true)
+  }
+
+  function closeMobileFilters() { setShowMobileFilterSheet(false) }
+
+  function clearMobileFilters() {
+    setDraftFilterType('all')
+    setDraftFilterCategory('all')
+    setDraftTransactionSort('newest')
+    setFilterType('all')
+    setFilterCategory('all')
+    setTransactionSort('newest')
+    setShowMobileFilterSheet(false)
+  }
+
+  function applyMobileFilters() {
+    setFilterType(draftFilterType)
+    setFilterCategory(draftFilterCategory)
+    setTransactionSort(draftTransactionSort)
+    setTransactionPage(1)
+    setShowMobileFilterSheet(false)
+  }
+
+  function openMobileTransaction(event, item) {
+    if (!isMobile) return
+    mobileSheetReturnFocusRef.current = event.currentTarget
+    setMobileTransactionDetail(item)
+  }
+
+  function closeMobileTransaction() { setMobileTransactionDetail(null) }
+
+  function duplicateTransaction(item) {
+    closeMobileTransaction()
+    editTransaction(item)
+    setEditingTransaction(null)
+  }
+
+  function formatMobileTransactionDate(item) {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(item.isoDate || '')) ? new Date(`${item.isoDate}T12:00:00`) : new Date(item.createdAt || '')
+    if (!Number.isFinite(date.getTime())) return [cleanDisplayText(item.date), cleanDisplayText(item.time)].filter(Boolean).join(', ')
+    const today = new Date()
+    const dayValue = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+    const todayValue = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+    const difference = Math.round((todayValue - dayValue) / 86400000)
+    const dateLabel = difference === 0 ? 'Today' : difference === 1 ? 'Yesterday' : date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+    return [dateLabel, cleanDisplayText(item.time)].filter(Boolean).join(', ')
+  }
+
   function renderTransactionRow(item) {
-    const paymentMethodLabel = item.method.length > 17 ? `${item.method.slice(0, 17)}…` : item.method
-    return <div className={`transaction-row${item.isCreditCardPayment ? ' credit-card-payment-row' : ''}`} key={item.id} onContextMenu={(event) => openTransactionMenu(event, item)}>
-      <div className="transaction-name"><span className={`transaction-icon ${item.color}`}><item.icon size={17}/></span><span><strong>{item.name}</strong><small>{item.category}</small></span></div>
-      <span className="payment-method" title={item.method}>{paymentMethodLabel}</span>
-      <time className="transaction-date" dateTime={item.createdAt || item.isoDate}><span>{item.date}</span>{item.time && <small>{item.time}</small>}</time>
-      <div className="transaction-amount-cell"><strong className={`transaction-amount ${item.amount > 0 ? 'positive' : ''}`}>{item.amount > 0 ? '+' : '−'}{peso(item.amount)}</strong><button type="button" className="transaction-more" aria-label={`Actions for ${item.name}`} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); openTransactionMenu(event, item) }}><MoreHorizontal size={17}/></button></div>
+    const rawMethod = cleanDisplayText(item.method)
+    const paymentMethodLabel = rawMethod.length > 17 ? `${rawMethod.slice(0, 17)}…` : rawMethod
+    const automatic = Boolean(item.isAutomatic || /\s(?:[·•]|[-–—])\s*Automatic\s*$/i.test(`${cleanDisplayText(item.name)} ${cleanDisplayText(item.note)}`))
+    const rawTitle = cleanDisplayText(item.name) || cleanDisplayText(item.category) || (item.type === 'income' ? 'Income' : 'Expense')
+    const title = (isMobile ? rawTitle.replace(/\s(?:[·•]|[-–—])\s*Automatic\s*$/i, '') : rawTitle) || (item.type === 'income' ? 'Income' : 'Expense')
+    const category = cleanDisplayText(item.category)
+    const amount = Number(item.amount)
+    const amountLabel = Number.isFinite(amount) ? `${amount > 0 ? '+' : '−'}${peso(amount)}` : '—'
+    const mobileDate = formatMobileTransactionDate(item)
+    const [mobileDateLabel, ...mobileTimeParts] = mobileDate.split(', ')
+    const mobileTimeLabel = mobileTimeParts.join(', ')
+    const visibleCategory = isMobile && category === 'Uncategorized' ? '' : category
+    const mobileDetailLine = [visibleCategory, mobileDate].filter((value) => typeof value === 'string' && value.trim()).join(' · ')
+    const rowLabel = `${title}${visibleCategory ? `, ${visibleCategory}` : ''}, ${amountLabel}${mobileDate ? `, ${mobileDate}` : ''}`
+    return <div className={`transaction-row${item.isCreditCardPayment ? ' credit-card-payment-row' : ''}`} key={item.id}
+      onClick={(event) => openMobileTransaction(event, item)}
+      onKeyDown={(event) => { if (isMobile && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openMobileTransaction(event, item) } }}
+      role={isMobile ? 'button' : undefined} tabIndex={isMobile ? 0 : undefined} aria-label={isMobile ? rowLabel : undefined}
+      onContextMenu={(event) => { if (!isMobile) openTransactionMenu(event, item) }}>
+      <div className="transaction-name"><span className={`transaction-icon ${item.color}`}><item.icon size={17}/></span><span className="transaction-row-copy"><strong>{title}</strong>{automatic && isMobile && <span className="transaction-auto-chip"><Repeat2 size={11}/> Auto</span>}<small>{isMobile ? mobileDetailLine : category || 'Uncategorized'}</small></span></div>
+      <span className="payment-method" title={paymentMethodLabel}>{paymentMethodLabel}</span>
+      <time className="transaction-date" dateTime={item.createdAt || item.isoDate}><span>{isMobile ? mobileDateLabel || '' : item.date || ''}</span>{isMobile ? mobileTimeLabel && <small>{mobileTimeLabel}</small> : item.time && <small>{item.time}</small>}</time>
+      <div className="transaction-amount-cell"><strong className={`transaction-amount ${amount > 0 ? 'positive' : ''}`}>{amountLabel}</strong><button type="button" className="transaction-more" aria-label={`Actions for ${title}`} aria-haspopup="menu" onClick={(event) => { event.stopPropagation(); if (!isMobile) openTransactionMenu(event, item) }}><MoreHorizontal size={17}/></button></div>
     </div>
   }
 
@@ -2159,7 +2324,7 @@ function App() {
       <header className="topbar"><div className="breadcrumb"><span>My workspace</span><span className="crumb-slash">/</span><strong>{active === 'Profile' ? 'Profile & settings' : active}</strong></div><div className="top-actions"><div className="notification-wrap" ref={notificationPanelRef}><button type="button" className="icon-button notification" aria-label={unreadNotifications.length ? `Notifications, ${unreadNotifications.length} unread` : 'Notifications'} aria-expanded={notificationsOpen} aria-haspopup="dialog" onClick={() => setNotificationsOpen((open) => !open)}><Bell size={18}/>{unreadNotifications.length > 0 && <span className="notification-count">{unreadNotifications.length > 9 ? '9+' : unreadNotifications.length}</span>}</button>{notificationsOpen && <section className="notification-popover" role="dialog" aria-label="Notifications"><div className="notification-popover-heading"><div><strong>Notifications</strong><small>{unreadNotifications.length ? `${unreadNotifications.length} unread` : 'You’re all caught up'}</small></div><button type="button" className="notification-mark-read" onClick={() => markNotificationsRead()} disabled={!unreadNotifications.length}>Mark all read</button></div>{notifications.length ? <div className="notification-list">{notifications.map((notification) => { const unread = !readNotificationIds.includes(notification.id); return <button type="button" className={`notification-item ${unread ? 'unread' : ''}`} key={notification.id} onClick={() => openBudgetNotification(notification)}><span className={`notification-item-icon ${notification.overLimit ? 'over-limit' : ''}`}><CircleAlert size={16}/></span><span className="notification-item-copy"><strong>{notification.title}</strong><small>{notification.message}</small></span>{unread && <i className="notification-unread-dot" aria-label="Unread"/>}</button> })}</div> : <div className="notification-empty"><span className="notification-empty-icon"><Bell size={17}/></span><strong>No budget alerts</strong><p>Alerts appear here when a category reaches 80% of its budget.</p></div>}</section>}</div><button type="button" className="top-avatar" style={{ backgroundColor: selectedAvatarPalette.background, color: selectedAvatarPalette.foreground, '--avatar-accent': selectedAvatarPalette.background }} aria-label="Open your profile" title="Profile & settings" onClick={() => setActive('Profile')}>{profileImageUrl ? <img className="avatar-image" src={profileImageUrl} alt="" /> : profileInitials}</button></div></header>
 
       {active === 'Dashboard' ? <div className="page-wrap">
-        <div className="welcome-row"><div><div className="eyebrow">{welcomeDate}</div><h1>Welcome, {authUser?.name?.split(' ')[0] || 'there'} <span className="wave">✳</span></h1><p className="page-subtitle">Your account overview for {currentMonth}.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={startNewTransaction}><Plus size={18} strokeWidth={2.5} /> Add transaction</button></div></div>
+        <div className="welcome-row"><div><div className="eyebrow">{welcomeDate}</div><h1>Welcome, {authUser?.name?.split(' ')[0] || 'there'}</h1><p className="page-subtitle">Your account overview for {currentMonth}.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={startNewTransaction}><Plus size={18} strokeWidth={2.5} /> Add transaction</button></div></div>
         {showGettingStarted && dashboardData && setupCompletedCount < setupItems.length && <section className="getting-started panel" aria-labelledby="getting-started-title">
           <div className="getting-started-heading"><div><span className="eyebrow">GETTING STARTED</span><h2 id="getting-started-title">Set up your money space</h2></div><div className="getting-started-progress"><span>{setupCompletedCount} of {setupItems.length} done</span><button type="button" className="icon-button" aria-label="Hide getting started checklist" onClick={dismissGettingStarted}><X size={15}/></button></div></div>
           <div className="getting-started-track" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax={setupItems.length} aria-valuenow={setupCompletedCount}><span style={{ width: `${(setupCompletedCount / setupItems.length) * 100}%` }}/></div>
@@ -2215,9 +2380,24 @@ function App() {
           <article className="panel budgets-panel"><div className="panel-heading"><div><div className="eyebrow">YOUR GUARDRAILS</div><h2>Budget progress</h2></div><button className="text-button" onClick={() => setActive('Budgets')}>See all <span>↗</span></button></div>{budgets.length ? <><div className="budget-list">{budgets.map((budget, index) => { const percent = budget.limit_minor > 0 ? Math.min(100, Math.round(budget.spent_minor / budget.limit_minor * 100)) : 0; const color = ['coral', 'blue', 'purple', 'yellow'][index % 4]; return <BudgetRow key={budget.id} color={color} icon={index % 2 ? <Wallet size={15}/> : <ShoppingBag size={15}/>} name={budget.category || 'Overall budget'} detail={`${currency(budget.spent_minor)} of ${currency(budget.limit_minor)}`} percent={percent} value={`${percent}%`} alert={percent >= 80}/> })}</div><button className="budget-manage" onClick={() => setActive('Budgets')}>Manage category limits <span>→</span></button></> : <div className="panel-empty"><p>No budgets set for this cycle yet.</p><button className="text-button" onClick={() => setActive('Budgets')}>Set a budget <span>↗</span></button></div>}</article>
         </section>
 
-        <section className="panel transactions-panel"><div className="panel-heading transactions-heading"><div><div className="eyebrow">THE LATEST</div><h2>Recent transactions</h2></div><div className="transaction-tools"><label className="searchbox"><Search size={15}/><input aria-label="Search transactions" placeholder="Search transactions" value={search} onChange={(e) => setSearch(e.target.value)} /></label><button className={`filter-button ${showFilters ? 'active' : ''}`} aria-expanded={showFilters} aria-label="Filters" onClick={() => setShowFilters((shown) => !shown)}><SlidersHorizontal size={16}/><span>Filter</span></button><button className="text-button all-transactions" onClick={() => setActive('Transactions')}>View all <span>↗</span></button></div></div>{showFilters && <div className="filter-popover"><label>Type<MenuSelect value={filterType} onChange={(value) => { setFilterType(value); setFilterCategory('all') }} ariaLabel="Filter transactions by type" options={[{ value: 'all', label: 'All activity' }, { value: 'expense', label: 'Expenses' }, { value: 'income', label: 'Income' }]}/></label><label>Category<MenuSelect value={filterCategory} onChange={setFilterCategory} ariaLabel="Filter transactions by category" options={transactionCategoryOptions}/></label><button type="button" className="text-button" onClick={() => { setFilterType('all'); setFilterCategory('all') }}>Clear filters</button></div>}<div className="table-head"><span>TRANSACTION</span><span>PAYMENT METHOD</span><span>DATE</span><span>AMOUNT</span></div><div className="transaction-list">{filtered.length ? filtered.slice(0, 4).map(renderTransactionRow) : <div className="transaction-empty">{search || filterCategory !== 'all' || filterType !== 'all' ? 'No transactions match these filters.' : 'No transactions yet. Add your first transaction to see it here.'}</div>}</div></section>
+        <section className="panel transactions-panel">
+          <div className="panel-heading transactions-heading">
+            <div className="transactions-heading-title"><div className="eyebrow transactions-eyebrow">THE LATEST</div><h2>Recent transactions</h2></div>
+            {isMobile && <button type="button" className="text-button mobile-all-transactions" onClick={() => setActive('Transactions')}>View all <span>↗</span></button>}
+            <div className="transaction-tools">
+              <label className="searchbox"><Search size={15}/><input aria-label="Search transactions" placeholder="Search transactions" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+              <button type="button" className={`filter-button ${showFilters || showMobileFilterSheet ? 'active' : ''}`} aria-expanded={isMobile ? showMobileFilterSheet : showFilters} aria-label={activeTransactionFilterCount ? `Filter transactions, ${activeTransactionFilterCount} active` : 'Filter transactions'} onClick={(event) => isMobile ? openMobileFilters(event) : setShowFilters((shown) => !shown)}><SlidersHorizontal size={16}/><span>Filter</span>{isMobile && activeTransactionFilterCount > 0 && <span className="mobile-filter-count">{activeTransactionFilterCount}</span>}</button>
+              <button type="button" className="text-button all-transactions" onClick={() => setActive('Transactions')}>View all <span>↗</span></button>
+            </div>
+          </div>
+          {showFilters && !isMobile && <TransactionFilterControls type={filterType} category={filterCategory} sort={transactionSort} categories={transactionCategoryOptions} onTypeChange={(value) => { setFilterType(value); setFilterCategory('all') }} onCategoryChange={setFilterCategory} onSortChange={(value) => { setTransactionSort(value); setTransactionPage(1) }} onClear={() => { setFilterType('all'); setFilterCategory('all') }}/>}
+          <div className="table-head"><span>TRANSACTION</span><span>PAYMENT METHOD</span><span>DATE</span><span>AMOUNT</span></div>
+          <div className="transaction-list">
+            {isMobile && dashboardData === null ? <div className="transaction-skeleton-list" aria-label="Loading recent transactions" aria-busy="true">{Array.from({ length: 3 }, (_, index) => <div className="transaction-skeleton-row" key={index}><i/><span><b/><small/></span><em/></div>)}</div> : filtered.length ? filtered.slice(0, 4).map(renderTransactionRow) : <div className="transaction-empty">{search || filterCategory !== 'all' || filterType !== 'all' ? 'No transactions match these filters.' : isMobile ? <>No transactions yet.<small>Add your first transaction to see it here.</small></> : 'No transactions yet. Add your first transaction to see it here.'}</div>}
+          </div>
+        </section>
         <footer className="page-footer"><button type="button" className="auth-story-credit" aria-expanded={showDeveloperCredit} onClick={() => setShowDeveloperCredit(true)}>{showDeveloperCredit ? 'Developer: carinokarlos' : 'Made in the Philippines'}</button><button type="button" onClick={replayTutorial}><CircleHelp size={14}/> How to use Resibo</button></footer>
-      </div> : active === 'Transactions' ? <div className="page-wrap"><div className="welcome-row"><div><div className="eyebrow">YOUR ACTIVITY · {currentMonth.toUpperCase()}</div><h1>Transactions</h1><p className="page-subtitle">A clear view of what came in and what went out.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={startNewTransaction}><Plus size={17}/> Add transaction</button></div></div><section className="summary-grid transaction-summary-grid" aria-label="Cycle activity summary"><article className="summary-card"><span className="metric-label">INCOME THIS CYCLE</span><div className="metric-amount small">{currency(incomeMinor)}</div><span className="stat-foot"><ArrowDownLeft size={14}/> Money received</span></article><article className="summary-card"><span className="metric-label">SPENDING THIS CYCLE</span><div className="metric-amount small">{currency(expensesMinor)}</div><span className="stat-foot expense-stat"><ArrowUpRight size={14}/> Money spent</span></article><article className="summary-card"><span className="metric-label">TRANSACTIONS</span><div className="metric-amount small">{transactions.length}</div><span className="stat-foot">{cycleLabel}</span></article></section><section className="panel transactions-panel full-transactions"><div className="panel-heading transactions-heading"><div><div className="eyebrow">{filtered.length} MATCHING RECORDS</div><h2>All transactions in this cycle</h2></div><div className="transaction-tools"><label className="searchbox"><Search size={15}/><input aria-label="Search transactions" placeholder="Search transactions" value={search} onChange={(event) => setSearch(event.target.value)} /></label><button className={`filter-button ${showFilters ? 'active' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters((shown) => !shown)}><SlidersHorizontal size={16}/><span>Filter</span></button></div></div>{showFilters && <div className="filter-popover"><label>Type<MenuSelect value={filterType} onChange={(value) => { setFilterType(value); setFilterCategory('all') }} ariaLabel="Filter transactions by type" options={[{ value: 'all', label: 'All activity' }, { value: 'expense', label: 'Expenses' }, { value: 'income', label: 'Income' }]}/></label><label>Category<MenuSelect value={filterCategory} onChange={setFilterCategory} ariaLabel="Filter transactions by category" options={transactionCategoryOptions}/></label><button type="button" className="text-button" onClick={() => { setFilterType('all'); setFilterCategory('all') }}>Clear filters</button></div>}<div className="table-head"><span>TRANSACTION</span><span>PAYMENT METHOD</span><span>DATE</span><span>AMOUNT</span></div><div className="transaction-list">{filtered.length ? visibleTransactions.map(renderTransactionRow) : <div className="transaction-empty">{search || filterCategory !== 'all' || filterType !== 'all' ? 'No transactions match these filters.' : 'No transactions recorded in this cycle yet.'}</div>}</div>{filtered.length > 0 && <div className="audit-history-pagination transactions-pagination"><span>Showing {transactionPageStart}–{transactionPageEnd} of {filtered.length}</span><div><button type="button" className="secondary-button" onClick={() => setTransactionPage((page) => Math.max(1, page - 1))} disabled={currentTransactionPage <= 1} aria-label="Previous transactions page">Previous</button><span>Page {currentTransactionPage} of {transactionPageCount}</span><button type="button" className="secondary-button" onClick={() => setTransactionPage((page) => Math.min(transactionPageCount, page + 1))} disabled={currentTransactionPage >= transactionPageCount} aria-label="Next transactions page">Next</button></div></div>}</section></div> : active === 'Budgets' ? <div className="page-wrap"><div className="welcome-row"><div><div className="eyebrow">YOUR PLAN · {currentMonth.toUpperCase()}</div><h1>Budgets</h1><p className="page-subtitle">Set category limits for {cycleLabel} and track your progress.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={() => { setBudgetCategoryId(''); setBudgetLimit(''); setBudgetError(''); setShowBudgetForm(true) }}><Plus size={17}/> Add budget</button></div></div><section className="panel budget-manager"><div className="panel-heading"><div><div className="eyebrow">CURRENT CYCLE</div><h2>Category limits</h2></div><strong>{budgets.length} {budgets.length === 1 ? 'budget' : 'budgets'}</strong></div>{budgets.length ? <div className="budget-manager-list">{budgets.map((budget, index) => { const percent = budget.limit_minor > 0 ? Math.min(100, Math.round(budget.spent_minor / budget.limit_minor * 100)) : 0; const color = ['coral', 'blue', 'purple', 'yellow'][index % 4]; return <div className="budget-manager-row" key={budget.id}><BudgetRow color={color} icon={<Wallet size={15}/>} name={budget.category || 'Overall budget'} detail={`${currency(budget.spent_minor)} spent of ${currency(budget.limit_minor)}`} percent={percent} value={`${percent}%`} alert={percent >= 80}/><button className="text-button" onClick={() => { setBudgetCategoryId(budget.category_id ? String(budget.category_id) : ''); setBudgetLimit((budget.limit_minor / 100).toFixed(2)); setBudgetError(''); setShowBudgetForm(true) }}>Edit limit</button></div> })}</div> : <div className="panel-empty"><p>No budgets for this cycle yet. Add a category limit to start tracking progress.</p><button className="primary-button" onClick={() => { setBudgetCategoryId(''); setBudgetLimit(''); setBudgetError(''); setShowBudgetForm(true) }}><Plus size={16}/> Create your first budget</button></div>}</section></div> : active === 'Profile' ? <div className="page-wrap profile-page">
+      </div> : active === 'Transactions' ? <div className="page-wrap"><div className="welcome-row"><div><div className="eyebrow">YOUR ACTIVITY · {currentMonth.toUpperCase()}</div><h1>Transactions</h1><p className="page-subtitle">A clear view of what came in and what went out.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={startNewTransaction}><Plus size={17}/> Add transaction</button></div></div><section className="summary-grid transaction-summary-grid" aria-label="Cycle activity summary"><article className="summary-card"><span className="metric-label">INCOME THIS CYCLE</span><div className="metric-amount small">{currency(incomeMinor)}</div><span className="stat-foot"><ArrowDownLeft size={14}/> Money received</span></article><article className="summary-card"><span className="metric-label">SPENDING THIS CYCLE</span><div className="metric-amount small">{currency(expensesMinor)}</div><span className="stat-foot expense-stat"><ArrowUpRight size={14}/> Money spent</span></article><article className="summary-card"><span className="metric-label">TRANSACTIONS</span><div className="metric-amount small">{transactions.length}</div><span className="stat-foot">{cycleLabel}</span></article></section><section className="panel transactions-panel full-transactions"><div className="panel-heading transactions-heading"><div><div className="eyebrow">{filtered.length} MATCHING RECORDS</div><h2>All transactions in this cycle</h2></div><div className="transaction-tools"><label className="searchbox"><Search size={15}/><input aria-label="Search transactions" placeholder="Search transactions" value={search} onChange={(event) => setSearch(event.target.value)} /></label><button className={`filter-button ${showFilters || showMobileFilterSheet ? 'active' : ''}`} aria-expanded={isMobile ? showMobileFilterSheet : showFilters} aria-label={activeTransactionFilterCount ? `Filter transactions, ${activeTransactionFilterCount} active` : 'Filter transactions'} onClick={(event) => isMobile ? openMobileFilters(event) : setShowFilters((shown) => !shown)}><SlidersHorizontal size={16}/><span>Filter</span>{isMobile && activeTransactionFilterCount > 0 && <span className="mobile-filter-count">{activeTransactionFilterCount}</span>}</button></div></div>{showFilters && !isMobile && <div className="filter-popover"><label>Type<MenuSelect value={filterType} onChange={(value) => { setFilterType(value); setFilterCategory('all') }} ariaLabel="Filter transactions by type" options={[{ value: 'all', label: 'All activity' }, { value: 'expense', label: 'Expenses' }, { value: 'income', label: 'Income' }]}/></label><label>Category<MenuSelect value={filterCategory} onChange={setFilterCategory} ariaLabel="Filter transactions by category" options={transactionCategoryOptions}/></label><label className="filter-popover-sort">Sort by<MenuSelect value={transactionSort} onChange={(value) => { setTransactionSort(value); setTransactionPage(1) }} ariaLabel="Sort transactions" options={[{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }, { value: 'amount-high', label: 'Highest amount' }, { value: 'amount-low', label: 'Lowest amount' }]}/></label><button type="button" className="text-button clear-filters-button" onClick={() => { setFilterType('all'); setFilterCategory('all') }}>Clear filters</button></div>}<div className="table-head"><span>TRANSACTION</span><span>PAYMENT METHOD</span><span>DATE</span><span>AMOUNT</span></div><div className="transaction-list">{filtered.length ? visibleTransactions.map(renderTransactionRow) : <div className="transaction-empty">{search || filterCategory !== 'all' || filterType !== 'all' ? 'No transactions match these filters.' : 'No transactions recorded in this cycle yet.'}</div>}</div>{filtered.length > 0 && <div className="audit-history-pagination transactions-pagination"><span>Showing {transactionPageStart}–{transactionPageEnd} of {filtered.length}</span><div><button type="button" className="secondary-button" onClick={() => setTransactionPage((page) => Math.max(1, page - 1))} disabled={currentTransactionPage <= 1} aria-label="Previous transactions page">Previous</button><span>Page {currentTransactionPage} of {transactionPageCount}</span><button type="button" className="secondary-button" onClick={() => setTransactionPage((page) => Math.min(transactionPageCount, page + 1))} disabled={currentTransactionPage >= transactionPageCount} aria-label="Next transactions page">Next</button></div></div>}</section></div> : active === 'Budgets' ? <div className="page-wrap"><div className="welcome-row"><div><div className="eyebrow">YOUR PLAN · {currentMonth.toUpperCase()}</div><h1>Budgets</h1><p className="page-subtitle">Set category limits for {cycleLabel} and track your progress.</p></div><div className="page-actions">{cyclePicker}<button className="primary-button" onClick={() => { setBudgetCategoryId(''); setBudgetLimit(''); setBudgetError(''); setShowBudgetForm(true) }}><Plus size={17}/> Add budget</button></div></div><section className="panel budget-manager"><div className="panel-heading"><div><div className="eyebrow">CURRENT CYCLE</div><h2>Category limits</h2></div><strong>{budgets.length} {budgets.length === 1 ? 'budget' : 'budgets'}</strong></div>{budgets.length ? <div className="budget-manager-list">{budgets.map((budget, index) => { const percent = budget.limit_minor > 0 ? Math.min(100, Math.round(budget.spent_minor / budget.limit_minor * 100)) : 0; const color = ['coral', 'blue', 'purple', 'yellow'][index % 4]; return <div className="budget-manager-row" key={budget.id}><BudgetRow color={color} icon={<Wallet size={15}/>} name={budget.category || 'Overall budget'} detail={`${currency(budget.spent_minor)} spent of ${currency(budget.limit_minor)}`} percent={percent} value={`${percent}%`} alert={percent >= 80}/><button className="text-button" onClick={() => { setBudgetCategoryId(budget.category_id ? String(budget.category_id) : ''); setBudgetLimit((budget.limit_minor / 100).toFixed(2)); setBudgetError(''); setShowBudgetForm(true) }}>Edit limit</button></div> })}</div> : <div className="panel-empty"><p>No budgets for this cycle yet. Add a category limit to start tracking progress.</p><button className="primary-button" onClick={() => { setBudgetCategoryId(''); setBudgetLimit(''); setBudgetError(''); setShowBudgetForm(true) }}><Plus size={16}/> Create your first budget</button></div>}</section></div> : active === 'Profile' ? <div className="page-wrap profile-page">
         <div className="welcome-row profile-welcome"><div><div className="eyebrow">YOUR ACCOUNT</div><h1>Profile &amp; settings</h1><p className="page-subtitle">Manage your details and how your account appears.</p></div></div>
         <SettingsTabs activeTab={settingsTab} onSelect={selectSettingsTab} activityCount={auditTotal} automationCount={filteredIncomeSchedules.length}/>
         <div className={`profile-settings-grid settings-tab-panel${settingsTab === 'profile' ? '' : ' profile-settings-grid-single'}`} role="tabpanel" id={`settings-panel-${settingsTab}`} aria-labelledby={`settings-tab-${settingsTab}`} tabIndex={0}>
@@ -2328,18 +2508,58 @@ function App() {
           <label className="field-label">Amount per occurrence<input required min="0.01" step="0.01" type="number" inputMode="decimal" placeholder="0.00" value={schedule.amount} onChange={(event) => updateIncomeSchedule(schedule.clientKey, 'amount', event.target.value)} /><span className="currency-prefix">₱</span></label>
           <label className="field-label">{typeLabel} category<MenuSelect value={schedule.categoryId} onChange={(value) => updateIncomeSchedule(schedule.clientKey, 'categoryId', value)} ariaLabel="Schedule category" options={categoryOptions.map((entry) => ({ value: String(entry.id), label: entry.name }))}/></label>
           <SchedulePaymentSource label={schedule.transactionType === 'expense' ? 'Paid from' : 'Received into'} transactionType={schedule.transactionType} value={schedule.paymentMethodId} methods={savedPaymentMethods} onChange={(value) => updateIncomeSchedule(schedule.clientKey, 'paymentMethodId', value)} />
-          <label className="salary-schedule-toggle"><input type="checkbox" checked={Boolean(schedule.enabled)} onChange={(event) => updateIncomeSchedule(schedule.clientKey, 'enabled', event.target.checked)} /><span><strong>Enable automatic schedule</strong><small>Creates {schedule.transactionType} transactions on the selected date{schedule.frequency === 'monthly' ? '' : 's'} each month.</small></span></label>
-          <p className="salary-schedule-note">Resibo records scheduled transactions while it is open and catches up on missed dates the next time you open it.</p>
+          <label className="salary-schedule-toggle"><input type="checkbox" checked={Boolean(schedule.enabled)} onChange={(event) => updateIncomeSchedule(schedule.clientKey, 'enabled', event.target.checked)} /><span><strong>Enable automatic schedule</strong><small>Creates transactions on the dates above.</small></span></label>
+          <p className="salary-schedule-note">Missed dates are recorded next time you open Resibo.</p>
           {schedule.error && <div className="auth-alert error" role="alert">{schedule.error}</div>}
           {schedule.saved && !schedule.error && <div className="auth-alert success" role="status">Automatic schedule saved.</div>}
-          <div className="income-schedule-actions"><button className="primary-button save-button" type="submit" disabled={schedule.busy || !categories.some((entry) => entry.type === schedule.transactionType)}>{schedule.busy ? 'Saving…' : schedule.saved ? 'Save changes' : 'Save schedule'}</button><span>Recorded transactions stay in your history if you remove this schedule.</span></div>
+          <div className="income-schedule-actions"><button className="primary-button save-button" type="submit" disabled={schedule.busy || !categories.some((entry) => entry.type === schedule.transactionType)}>{schedule.busy ? 'Saving…' : schedule.saved ? 'Save changes' : 'Save schedule'}</button></div>
           <button type="button" className="text-button income-schedule-modal-delete" disabled={schedule.busy} onClick={() => removeIncomeSchedule(schedule.clientKey)}><Trash2 size={14}/>{schedule.id ? 'Delete schedule' : 'Discard draft'}</button>
         </form>
       </div>
     })()}
     {incomeScheduleToDelete && <div className="modal-backdrop schedule-delete-backdrop" onMouseDown={(event) => event.target === event.currentTarget && !incomeScheduleDeleteBusy && setIncomeScheduleToDelete(null)}><section className="add-modal confirm-remove-modal schedule-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-income-schedule-title" aria-describedby="delete-income-schedule-description"><div className="confirm-remove-heading"><span className="confirm-remove-icon"><Trash2 size={18}/></span><div><span className="eyebrow">AUTOMATIC TRANSACTION</span><h2 id="delete-income-schedule-title">Remove this schedule?</h2></div><button type="button" className="icon-button" aria-label="Close" disabled={incomeScheduleDeleteBusy} onClick={() => setIncomeScheduleToDelete(null)}><X size={19}/></button></div><div className="payment-remove-summary"><span className={`transaction-icon ${incomeScheduleToDelete.transactionType === 'income' ? 'mint' : 'blue'}`}>{incomeScheduleToDelete.transactionType === 'income' ? <ArrowDownLeft size={16}/> : <ArrowUpRight size={16}/>}</span><span><strong>{incomeScheduleToDelete.name}</strong><small>Automatic {incomeScheduleToDelete.transactionType}</small></span></div><p className="confirm-remove-copy" id="delete-income-schedule-description">This stops future automatic entries. Transactions already recorded will stay in your history.</p>{incomeScheduleDeleteError && <div className="confirm-remove-error" role="alert"><CircleAlert size={16}/><span>{incomeScheduleDeleteError}</span></div>}<div className="payment-edit-actions"><button type="button" className="secondary-button" onClick={() => setIncomeScheduleToDelete(null)} disabled={incomeScheduleDeleteBusy}>Cancel</button><button type="button" className="danger-button" onClick={confirmRemoveIncomeSchedule} disabled={incomeScheduleDeleteBusy}><Trash2 size={15}/>{incomeScheduleDeleteBusy ? 'Removing…' : 'Remove schedule'}</button></div></section></div>}
     {incomeScheduleContextMenu && <div ref={incomeScheduleContextMenuRef} className="transaction-context-menu" role="menu" aria-label={`Actions for ${incomeScheduleContextMenu.schedule.name}`} style={{ left: incomeScheduleContextMenu.x, top: incomeScheduleContextMenu.y }}><button type="button" role="menuitem" onClick={() => editIncomeSchedule(incomeScheduleContextMenu.schedule.clientKey)}><Pencil size={15}/> Edit schedule</button><button type="button" role="menuitem" className="transaction-context-delete" onClick={() => removeIncomeSchedule(incomeScheduleContextMenu.schedule.clientKey)}><Trash2 size={15}/> Delete schedule</button></div>}
-    {transactionContextMenu && <div ref={transactionContextMenuRef} className="transaction-context-menu" role="menu" aria-label={`Actions for ${transactionContextMenu.item.name}`} style={{ left: transactionContextMenu.x, top: transactionContextMenu.y }}>{transactionContextMenu.item.isCreditCardPayment ? <button type="button" role="menuitem" onClick={() => showCreditCardPaymentInHistory(transactionContextMenu.item)}><History size={15}/> Show in history</button> : <><button type="button" role="menuitem" onClick={() => editTransaction(transactionContextMenu.item)}><Pencil size={15}/> Edit transaction</button><button type="button" role="menuitem" className="transaction-context-delete" onClick={() => confirmDeleteTransaction(transactionContextMenu.item)}><Trash2 size={15}/> Delete transaction</button></>}</div>}
+    {isMobile && showMobileFilterSheet && <BottomSheet labelledBy="mobile-filter-sheet-title" onClose={closeMobileFilters} returnFocusRef={mobileSheetReturnFocusRef} className="mobile-filter-sheet">
+      <div className="mobile-sheet-heading"><div><span className="eyebrow">TRANSACTIONS</span><h2 id="mobile-filter-sheet-title">Filter transactions</h2></div><button type="button" className="icon-button mobile-sheet-close" aria-label="Close filters" onClick={closeMobileFilters}><X size={19}/></button></div>
+      <TransactionFilterControls mobile type={draftFilterType} category={draftFilterCategory} sort={draftTransactionSort} categories={transactionCategoryOptions} onTypeChange={(value) => { setDraftFilterType(value); setDraftFilterCategory('all') }} onCategoryChange={setDraftFilterCategory} onSortChange={setDraftTransactionSort} onClear={clearMobileFilters} onApply={applyMobileFilters}/>
+    </BottomSheet>}
+    {isMobile && mobileTransactionDetail && (() => {
+      const item = mobileTransactionDetail
+      const method = savedPaymentMethods.find((entry) => String(entry.userMethodId) === String(item.paymentMethodId))
+      const methodName = item.isCreditCardPayment ? cleanDisplayText(item.paymentMethodName) : cleanDisplayText(method?.customLabel) || cleanDisplayText(method?.name) || cleanDisplayText(item.paymentMethodName) || cleanDisplayText(item.method)
+      const methodType = method?.groupId === 'debit' ? 'Debit' : method?.groupId === 'credit' ? 'Credit' : method?.groupId === 'ewallet' ? 'E-wallet' : method?.groupId === 'cash' ? 'Cash' : ''
+      const account = [methodName, method?.lastFour ? `••${method.lastFour}` : '', methodType && methodType !== 'Cash' ? methodType : ''].filter(Boolean).join(method?.lastFour ? ' · ' : ' · ')
+      const rawTitle = cleanDisplayText(item.name) || cleanDisplayText(item.category) || 'Transaction'
+      const automatic = Boolean(item.isAutomatic || /\s(?:[·•]|[-–—])\s*Automatic\s*$/i.test(`${rawTitle} ${item.note || ''}`))
+      const title = rawTitle.replace(/\s(?:[·•]|[-–—])\s*Automatic\s*$/i, '').trim() || 'Transaction'
+      const value = Number(item.amount)
+      const signedAmount = Number.isFinite(value) ? `${value > 0 ? '+' : '−'}${peso(value)}` : '—'
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(item.isoDate || '')) ? new Date(`${item.isoDate}T12:00:00`) : null
+      const fullDate = date && Number.isFinite(date.getTime()) ? date.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : cleanDisplayText(item.date)
+      const fullDateTime = [fullDate, cleanDisplayText(item.time)].filter(Boolean).join(' · ')
+      const category = cleanDisplayText(item.category)
+      const noteText = cleanDisplayText(item.note).replace(/\s(?:[·•]|[-–—])\s*Automatic\s*$/i, '').trim()
+      const referenceValue = cleanDisplayText(item.creditCardPaymentId || item.id)
+      const referenceId = referenceValue ? `#${referenceValue}` : ''
+      return <BottomSheet labelledBy="mobile-transaction-sheet-title" onClose={closeMobileTransaction} returnFocusRef={mobileSheetReturnFocusRef} className="mobile-transaction-sheet">
+        <div className="mobile-sheet-heading"><div><span className="eyebrow">TRANSACTION DETAILS</span><h2 id="mobile-transaction-sheet-title">{title}</h2></div><button type="button" className="icon-button mobile-sheet-close" aria-label="Close transaction details" onClick={closeMobileTransaction}><X size={19}/></button></div>
+        <div className="mobile-transaction-summary"><div className="mobile-transaction-type">{item.type === 'income' ? 'Income' : 'Expense'}{automatic && <span className="mobile-auto-badge"><Repeat2 size={12}/> Automatic</span>}</div><strong className={`mobile-detail-amount ${value > 0 ? 'positive' : ''}`}>{signedAmount}</strong></div>
+        <dl className="mobile-transaction-details">
+          {category && category !== 'Uncategorized' && <div><dt>Category</dt><dd>{category}</dd></div>}
+          {account && <div><dt>Account</dt><dd>{account}</dd></div>}
+          {fullDateTime && <div><dt>Date and time</dt><dd>{fullDateTime}</dd></div>}
+          {noteText && <div><dt>Notes</dt><dd>{noteText}</dd></div>}
+          {referenceId && <div><dt>Reference ID</dt><dd>{referenceId}</dd></div>}
+        </dl>
+        <div className="mobile-transaction-actions">
+          {item.isCreditCardPayment ? <button type="button" className="secondary-button" onClick={() => { closeMobileTransaction(); showCreditCardPaymentInHistory(item) }}><History size={15}/> Show in history</button> : <>
+            <button type="button" className="secondary-button" onClick={() => { closeMobileTransaction(); editTransaction(item) }}><Pencil size={15}/> Edit</button>
+            <button type="button" className="secondary-button" onClick={() => duplicateTransaction(item)}><Copy size={15}/> Duplicate</button>
+            <button type="button" className="mobile-delete-transaction" onClick={() => { closeMobileTransaction(); confirmDeleteTransaction(item) }}><Trash2 size={15}/> Delete</button>
+          </>}
+        </div>
+      </BottomSheet>
+    })()}    {transactionContextMenu && <div ref={transactionContextMenuRef} className="transaction-context-menu" role="menu" aria-label={`Actions for ${transactionContextMenu.item.name}`} style={{ left: transactionContextMenu.x, top: transactionContextMenu.y }}>{transactionContextMenu.item.isCreditCardPayment ? <button type="button" role="menuitem" onClick={() => showCreditCardPaymentInHistory(transactionContextMenu.item)}><History size={15}/> Show in history</button> : <><button type="button" role="menuitem" onClick={() => editTransaction(transactionContextMenu.item)}><Pencil size={15}/> Edit transaction</button><button type="button" role="menuitem" className="transaction-context-delete" onClick={() => confirmDeleteTransaction(transactionContextMenu.item)}><Trash2 size={15}/> Delete transaction</button></>}</div>}
     {transactionToDelete && <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && !transactionDeleteBusy && setTransactionToDelete(null)}><section className="add-modal confirm-remove-modal transaction-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-transaction-title" aria-describedby="delete-transaction-description"><div className="confirm-remove-heading"><span className="confirm-remove-icon"><Trash2 size={18}/></span><div><span className="eyebrow">TRANSACTION</span><h2 id="delete-transaction-title">Delete this transaction?</h2></div><button type="button" className="icon-button" aria-label="Close" disabled={transactionDeleteBusy} onClick={() => setTransactionToDelete(null)}><X size={19}/></button></div><div className="payment-remove-summary"><span className={`transaction-icon ${transactionToDelete.color}`}>{transactionToDelete.amount > 0 ? <ArrowDownLeft size={16}/> : <ShoppingBag size={16}/>}</span><span><strong>{transactionToDelete.name}</strong><small>{transactionToDelete.category} · {transactionToDelete.date} · {transactionToDelete.amount > 0 ? '+' : '−'}{peso(transactionToDelete.amount)}</small></span></div><p className="confirm-remove-copy" id="delete-transaction-description">This will permanently remove the transaction and update your cycle totals. This action can’t be undone.</p>{transactionDeleteError && <div className="confirm-remove-error" role="alert"><CircleAlert size={16}/><span>{transactionDeleteError}</span></div>}<div className="payment-edit-actions"><button type="button" className="secondary-button" onClick={() => setTransactionToDelete(null)} disabled={transactionDeleteBusy}>Cancel</button><button type="button" className="danger-button" onClick={deleteTransaction} disabled={transactionDeleteBusy}><Trash2 size={15}/>{transactionDeleteBusy ? 'Deleting…' : 'Delete transaction'}</button></div></section></div>}
     {showMethodPicker && <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setShowMethodPicker(false)}>
       <section ref={methodPickerRef} className="method-picker" role="dialog" aria-modal="true" aria-labelledby="method-picker-title">
