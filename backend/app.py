@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 import secrets
 from datetime import timedelta
+from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request, send_from_directory
 from sqlalchemy import event
 from werkzeug.exceptions import HTTPException
 
@@ -16,7 +17,8 @@ from .routes import register_blueprints
 
 
 def create_app(test_config: dict | None = None) -> Flask:
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
+    frontend_dist = Path(__file__).resolve().parent.parent / "dist"
     app_env = os.getenv("APP_ENV", "development").lower()
     configured_secret = os.getenv("SECRET_KEY")
     configured_limiter_store = os.getenv("RATELIMIT_STORAGE_URI")
@@ -57,6 +59,27 @@ def create_app(test_config: dict | None = None) -> Flask:
     csrf.init_app(app)
     limiter.init_app(app)
     register_blueprints(app)
+
+    @app.get("/", defaults={"asset_path": ""})
+    @app.get("/<path:asset_path>")
+    def serve_frontend(asset_path: str):
+        # API URLs must keep returning API 404s instead of the SPA document.
+        if asset_path == "api" or asset_path.startswith("api/"):
+            abort(404)
+        if not frontend_dist.is_dir():
+            return jsonify(error="The frontend build is missing on this server."), 503
+
+        requested_file = (frontend_dist / asset_path).resolve()
+        try:
+            requested_file.relative_to(frontend_dist.resolve())
+        except ValueError:
+            abort(404)
+
+        if requested_file.is_file():
+            return send_from_directory(frontend_dist, asset_path)
+        if Path(asset_path).suffix:
+            abort(404)
+        return send_from_directory(frontend_dist, "index.html")
 
     @app.errorhandler(413)
     def too_large(_error):
