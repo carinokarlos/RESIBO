@@ -1,0 +1,416 @@
+{
+  "card_types": [
+    "Debit",
+    "Credit",
+    "Prepaid",
+    "BNPL",
+    "Cash"
+  ],
+  "networks": [
+    "Visa",
+    "Mastercard",
+    "JCB",
+    "American Express",
+    "UnionPay"
+  ],
+  "banks": [
+    {
+      "name": "BDO Unibank",
+      "types": [
+        "Debit",
+        "Credit",
+        "Prepaid"
+      ],
+      "cards": {
+        "Debit": [
+          "BDO Debit Mastercard",
+          "BDO Debit Visa",
+          "BDO Kabayan Debit"
+        ],
+        "Credit": [
+          "BDO Gold Mastercard",
+          "BDO Platinum Visa",
+          "BDO Cashback Mastercard",
+          "BDO Rewards Visa",
+          "BDO Visa Infinite",
+          "BDO Mastercard World"
+        ],
+        "Prepaid": [
+          "BDO Prepaid Card"
+        ]
+      }
+    },
+    {
+      "name": "BPI (Bank of the Philippine Islands)",
+      "types": [
+        "Debit",
+        "Credit",
+        "Prepaid"
+      ],
+      "cards": {
+        "Debit": [
+          "BPI Debit Mastercard",
+          "BPI Debit Visa"
+        ],
+        "Credit": [
+          "BPI Blue Mastercard",
+          "BPI Gold Rewards",
+          "BPI Platinum Rewards",
+          "BPI Amore Cashback",
+          "BPI Signature Rewards",
+          "BPI Edge Mastercard"
+        ],
+        "Prepaid": [
+          "BPI Prepaid Card"
+        ]
+      }
+    },
+    {
+      "name": "Metrobank",
+      "types": [
+        "Debit",
+        "Credit",
+        "Prepaid"
+      ],
+      "cards": {
+        "Debit": [
+          "Metrobank Debit Mastercard",
+          "Metrobank Debit Visa"
+        ],
+        "Credit": [
+          "Metrobank Rewards Plus",
+          "Metrobank Titanium",
+          "Metrobank Platinum",
+          "Metrobank M Free",
+          "Metrobank Travel Platinum"
+        ],
+        "Prepaid": [
+          "Metrobank Prepaid Card"
+        ]
+      }
+    },
+    {
+      "name": "Security Bank",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "Security Bank Debit Mastercard",
+          "Security Bank Debit Visa"
+        ],
+        "Credit": [
+          "Security Bank Complete Cashback",
+          "Security Bank Wave Mastercard",
+          "Security Bank Platinum",
+          "Security Bank Gold"
+        ]
+      }
+    },
+    {
+      "name": "UnionBank",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "UnionBank Debit Visa",
+          "UnionBank Debit Mastercard"
+        ],
+        "Credit": [
+          "UnionBank Rewards Visa",
+          "UnionBank Cashback Visa",
+          "UnionBank Miles+ Visa",
+          "UnionBank Platinum Visa"
+        ]
+      }
+    },
+    {
+      "name": "RCBC",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "RCBC Debit Mastercard",
+          "RCBC Debit Visa"
+        ],
+        "Credit": [
+          "RCBC Bankard Gold",
+          "RCBC Bankard Platinum",
+          "RCBC Hexagon Club",
+          "RCBC Visa Infinite"
+        ]
+      }
+    },
+    {
+      "name": "China Bank",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "China Bank Debit Mastercard",
+          "China Bank Debit Visa"
+        ],
+        "Credit": [
+          "China Bank Gold",
+          "China Bank Platinum",
+          "China Bank Cashback"
+        ]
+      }
+    },
+    {
+      "name": "EastWest Bank",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "EastWest Debit Mastercard",
+          "EastWest Debit Visa"
+        ],
+        "Credit": [
+          "EastWest Privilege",
+          "EastWest Platinum",
+          "EastWest Gold",
+          "EastWest Visa Platinum"
+        ]
+      }
+    },
+    {
+      "name": "PNB (Philippine National Bank)",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "PNB Debit Mastercard",
+          "PNB Debit Visa"
+        ],
+        "Credit": [
+          "PNB Gold Mastercard",
+          "PNB Platinum Mastercard",
+          "PNB Visa Gold"
+        ]
+      }
+    },
+    {
+      "name": "Landbank of the Philippines",
+      "types": [
+        "Debit",
+        "Credit",
+        "Prepaid"
+      ],
+      "cards": {
+        "Debit": [
+          "Landbank Debit Mastercard",
+          "Landbank Debit Visa",
+          "Landbank iAccess Card"
+        ],
+        "Credit": [
+          "Landbank Mastercard",
+          "Landbank Visa"
+        ],
+        "Prepaid": [
+          "Landbank Prepaid Card"
+        ]
+      }
+    },
+    {
+      "name": "PSBank",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "PSBank Debit Mastercard"
+        ],
+        "Credit": [
+          "PSBank Credit Card"
+        ]
+      }
+    },
+    {
+      "name": "Maybank Philippines",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "Maybank Debit Card"
+        ],
+        "Credit": [
+          "Maybank Platinum Visa",
+          "Maybank Gold Mastercard"
+        ]
+      }
+    },
+    {
+      "name": "HSBC Philippines",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "HSBC Debit Card"
+        ],
+        "Credit": [
+          "HSBC Red Mastercard",
+          "HSBC Gold Visa",
+          "HSBC Premier Mastercard"
+        ]
+      }
+    },
+    {
+      "name": "AUB (Asia United Bank)",
+      "types": [
+        "Debit",
+        "Credit"
+      ],
+      "cards": {
+        "Debit": [
+          "AUB Debit Card"
+        ],
+        "Credit": [
+          "AUB Gold",
+          "AUB Platinum"
+        ]
+      }
+    },
+    {
+      "name": "GCash (GCash Card / GGives)",
+      "types": [
+        "Prepaid"
+      ],
+      "cards": {
+        "Prepaid": [
+          "GCash Mastercard (Virtual)",
+          "GCash Mastercard (Physical)"
+        ]
+      }
+    },
+    {
+      "name": "Maya / Maya Bank",
+      "types": [
+        "Debit",
+        "Prepaid"
+      ],
+      "cards": {
+        "Debit": [
+          "Maya Bank Debit Card"
+        ],
+        "Prepaid": [
+          "Maya Virtual Card",
+          "Maya Physical Card"
+        ]
+      }
+    },
+    {
+      "name": "GoTyme Bank",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "GoTyme Visa Debit"
+        ]
+      }
+    },
+    {
+      "name": "SeaBank",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "SeaBank Debit Card"
+        ]
+      }
+    },
+    {
+      "name": "CIMB Bank Philippines",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "CIMB Debit Mastercard"
+        ]
+      }
+    },
+    {
+      "name": "Tonik Digital Bank",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "Tonik Debit Card"
+        ]
+      }
+    },
+    {
+      "name": "UNO Digital Bank",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "UNO Debit Card"
+        ]
+      }
+    },
+    {
+      "name": "Maribank",
+      "types": [
+        "Debit"
+      ],
+      "cards": {
+        "Debit": [
+          "Maribank Debit Card"
+        ]
+      }
+    },
+    {
+      "name": "Atome",
+      "types": [
+        "BNPL"
+      ],
+      "cards": {
+        "BNPL": [
+          "Atome Card"
+        ]
+      }
+    },
+    {
+      "name": "Cash",
+      "types": [
+        "Cash"
+      ],
+      "cards": {
+        "Cash": [
+          "Cash Wallet"
+        ]
+      }
+    },
+    {
+      "name": "Other",
+      "types": [
+        "Debit",
+        "Credit",
+        "Prepaid"
+      ],
+      "cards": {}
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Local databases, runtime files, and logs
+instance/
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.log
+*.log.*
+.runtime-deps/
+.mysql-recovery-test/
+
+# Local operating system files
+.DS_Store
+Thumbs.db
